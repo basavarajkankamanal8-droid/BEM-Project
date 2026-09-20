@@ -1,0 +1,606 @@
+@import "tailwindcss";
+
+/* ============================================
+   AERIS — Orange + Black Premium Design System
+   Primary: #FF6B35 | Background: #0f0f0f
+   Fonts: Space Grotesk (display) + Inter (body)
+   ============================================ */
+
+@layer base {
+  :root {
+    /* Core Palette */
+    --aeris-bg:           #0f0f0f;
+    --aeris-surface:      #141414;
+    --aeris-card:         #181818;
+    --aeris-elevated:     #1c1c1c;
+    --aeris-border:       #262626;
+    --aeris-border-light: #333333;
+    --aeris-border-glow:  rgba(255, 107, 53, 0.35);
+
+    /* Orange Brand */
+    --aeris-orange:       #FF6B35;
+    --aeris-orange-light: #ff8152;
+    --aeris-orange-dim:   #cc5528;
+    --aeris-orange-glow:  rgba(255, 107, 53, 0.25);
+    --aeris-orange-glass: rgba(255, 107, 53, 0.08);
+
+    /* Semantic Colors */
+    --aeris-emerald:      #10b981;
+    --aeris-amber:        #f59e0b;
+    --aeris-rose:         #ef4444;
+    --aeris-cyan:         #22d3ee;
+
+    /* Text Hierarchy */
+    --aeris-text-primary:   #ededed;
+    --aeris-text-secondary: #a3a3a3;
+    --aeris-text-muted:     #737373;
+    --aeris-text-faint:     #525252;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: var(--aeris-bg);
+    color: var(--aeris-text-primary);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Space Grotesk', sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  code, .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  #root {
+    min-height: 100vh;
+    width: 100%;
+    margin: 0;
+    max-width: 100%;
+    text-align: left;
+    border: none;
+    display: block;
+  }
+
+  ::selection {
+    background: rgba(255, 107, 53, 0.3);
+    color: #FF6B35;
+  }
+}
+
+/* ============================================
+   SCROLLBAR — Premium Dark Orange
+   ============================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #0a0a0a; }
+::-webkit-scrollbar-thumb {
+  background: #1f1f1f;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover { background: #FF6B35; }
+
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
+
+/* Scanline laser sweep */
+@keyframes scanline {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  5%   { opacity: 1; }
+  95%  { opacity: 1; }
+  100% { transform: translateY(1200%); opacity: 0; }
+}
+
+/* Pulse glow on orange elements */
+@keyframes orangePulse {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,107,53,0.2); }
+  50%       { box-shadow: 0 0 30px rgba(255,107,53,0.5), 0 0 60px rgba(255,107,53,0.15); }
+}
+
+/* Slow rotation for globe/satellite icons */
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Shimmer / sweep highlight */
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Radar ping */
+@keyframes radarPing {
+  0%   { transform: scale(1); opacity: 0.8; }
+  80%  { transform: scale(2.5); opacity: 0; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* Float gentle */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+
+/* Grid fade-in for backgrounds */
+@keyframes gridFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Blink for cursor-style elements */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Data stream scroll */
+@keyframes dataStream {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
+}
+
+/* Gradient orbit animation */
+@keyframes orbitGlow {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Slide up entrance */
+@keyframes slideUp {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ============================================
+   ANIMATION UTILITY CLASSES
+   ============================================ */
+.animate-spin-slow       { animation: spinSlow 8s linear infinite; }
+.animate-scanline        { animation: scanline 7s linear infinite; }
+.animate-orange-pulse    { animation: orangePulse 2.5s ease-in-out infinite; }
+.animate-float           { animation: floatY 3s ease-in-out infinite; }
+.animate-shimmer         { animation: shimmer 2.5s linear infinite; }
+.animate-slide-up        { animation: slideUp 0.4s ease-out forwards; }
+.animate-fade-in         { animation: fadeIn 0.5s ease-out forwards; }
+.animate-radar           { animation: radarPing 1.8s ease-out infinite; }
+.animate-blink           { animation: blink 1s step-end infinite; }
+
+/* ============================================
+   GLASSMORPHISM COMPONENTS
+   ============================================ */
+
+/* Standard glass panel */
+.aeris-glass {
+  background: rgba(20, 20, 20, 0.82);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 107, 53, 0.12);
+}
+
+/* Card glass with hover reveal */
+.aeris-glass-card {
+  background: rgba(22, 22, 22, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+}
+.aeris-glass-card:hover {
+  border-color: rgba(255, 107, 53, 0.28);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,107,53,0.08);
+  transform: translateY(-1px);
+}
+
+/* Elevated card with deeper shadow */
+.aeris-card {
+  background: var(--aeris-card);
+  border: 1px solid var(--aeris-border);
+  border-radius: 12px;
+  transition: border-color 0.25s, box-shadow 0.25s, transform 0.2s;
+}
+.aeris-card:hover {
+  border-color: rgba(255, 107, 53, 0.3);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   GLOW EFFECTS
+   ============================================ */
+.aeris-glow-orange {
+  box-shadow:
+    0 0 20px rgba(255, 107, 53, 0.2),
+    0 0 60px rgba(255, 107, 53, 0.08);
+}
+.aeris-glow-orange-strong {
+  box-shadow:
+    0 0 30px rgba(255, 107, 53, 0.35),
+    0 0 80px rgba(255, 107, 53, 0.15),
+    inset 0 1px 0 rgba(255,107,53,0.2);
+}
+.aeris-glow-emerald {
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+}
+.aeris-glow-rose {
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
+}
+
+/* ============================================
+   ORANGE BORDER / ACCENT LINE
+   ============================================ */
+.aeris-orange-border {
+  border-color: var(--aeris-orange) !important;
+}
+
+/* Active left-bar indicator for sidebar */
+.aeris-active-indicator {
+  position: relative;
+}
+.aeris-active-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: linear-gradient(180deg, #FF6B35, #ff8152);
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 10px rgba(255,107,53,0.5);
+}
+
+/* ============================================
+   SCANLINE OVERLAY (tech display panels)
+   ============================================ */
+.scanline-effect {
+  position: relative;
+  overflow: hidden;
+}
+.scanline-effect::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,107,53,0.7) 50%, transparent 100%);
+  animation: scanline 8s linear infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ============================================
+   GRID BACKGROUND PATTERN
+   ============================================ */
+.aeris-grid-bg {
+  background-image:
+    linear-gradient(rgba(255,107,53,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,107,53,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: center center;
+}
+
+.aeris-dot-bg {
+  background-image: radial-gradient(rgba(255,107,53,0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ============================================
+   GRADIENT BUTTON
+   ============================================ */
+.aeris-btn-primary {
+  background: linear-gradient(135deg, #FF6B35 0%, #ff8c5a 100%);
+  color: #0f0f0f;
+  font-weight: 700;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+.aeris-btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.4s ease;
+}
+.aeris-btn-primary:hover::before { left: 100%; }
+.aeris-btn-primary:hover {
+  box-shadow: 0 8px 30px rgba(255,107,53,0.4);
+  transform: translateY(-1px);
+}
+.aeris-btn-primary:active { transform: translateY(0); }
+
+.aeris-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255,107,53,0.3);
+  color: var(--aeris-orange);
+  transition: all 0.2s ease;
+}
+.aeris-btn-ghost:hover {
+  background: rgba(255,107,53,0.08);
+  border-color: var(--aeris-orange);
+  box-shadow: 0 0 20px rgba(255,107,53,0.1);
+}
+
+/* ============================================
+   BADGE / TAG UTILITIES
+   ============================================ */
+.aeris-badge-orange {
+  background: rgba(255, 107, 53, 0.12);
+  border: 1px solid rgba(255, 107, 53, 0.3);
+  color: var(--aeris-orange);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.aeris-badge-emerald {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: var(--aeris-emerald);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.aeris-badge-rose {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--aeris-rose);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* ============================================
+   INPUT FIELDS — Premium dark styling
+   ============================================ */
+.aeris-input {
+  width: 100%;
+  background: rgba(10, 10, 10, 0.8);
+  border: 1px solid var(--aeris-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--aeris-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.aeris-input:focus {
+  border-color: var(--aeris-orange);
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.1), 0 0 20px rgba(255,107,53,0.08);
+}
+.aeris-input::placeholder { color: var(--aeris-text-faint); }
+
+/* ============================================
+   TABLE — Premium dark
+   ============================================ */
+.aeris-table thead tr {
+  background: rgba(10, 10, 10, 0.8);
+  border-bottom: 1px solid var(--aeris-border);
+}
+.aeris-table thead th {
+  color: var(--aeris-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 14px;
+  font-weight: 600;
+}
+.aeris-table tbody tr {
+  border-bottom: 1px solid rgba(38, 38, 38, 0.5);
+  transition: background 0.15s;
+}
+.aeris-table tbody tr:hover {
+  background: rgba(255, 107, 53, 0.03);
+}
+.aeris-table tbody td {
+  padding: 10px 14px;
+  font-size: 12px;
+}
+
+/* ============================================
+   HERO GRADIENT BACKGROUND
+   ============================================ */
+.aeris-hero-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255,107,53,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 80%, rgba(255,107,53,0.06) 0%, transparent 50%),
+    var(--aeris-bg);
+}
+
+/* ============================================
+   SIDEBAR NAV ITEM
+   ============================================ */
+.aeris-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.18s ease;
+  position: relative;
+  border: 1px solid transparent;
+}
+.aeris-nav-item:hover {
+  background: rgba(255,107,53,0.04);
+  color: #f5f5f5;
+  border-color: rgba(255,107,53,0.1);
+}
+.aeris-nav-item.active {
+  background: rgba(255, 107, 53, 0.10);
+  color: var(--aeris-orange);
+  border-color: rgba(255, 107, 53, 0.2);
+  font-weight: 600;
+}
+.aeris-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 55%;
+  background: var(--aeris-orange);
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 8px rgba(255,107,53,0.6);
+}
+
+/* ============================================
+   METRIC / KPI CARD ACCENT BAR
+   ============================================ */
+.aeris-metric-card {
+  position: relative;
+  overflow: hidden;
+}
+.aeris-metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--aeris-orange), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.aeris-metric-card:hover::before { opacity: 1; }
+
+/* ============================================
+   STATUS DOT ANIMATIONS
+   ============================================ */
+.status-dot-online {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--aeris-emerald);
+  box-shadow: 0 0 8px var(--aeris-emerald);
+  animation: orangePulse 2s ease-in-out infinite;
+}
+.status-dot-alert {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--aeris-rose);
+  box-shadow: 0 0 8px var(--aeris-rose);
+  animation: radarPing 1.5s ease-out infinite;
+}
+.status-dot-orange {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--aeris-orange);
+  box-shadow: 0 0 8px var(--aeris-orange);
+}
+
+/* ============================================
+   LOGIN PAGE — Cinematic background
+   ============================================ */
+.aeris-login-bg {
+  background:
+    radial-gradient(ellipse 100% 60% at 50% 0%, rgba(255,107,53,0.08) 0%, transparent 70%),
+    radial-gradient(circle at 80% 20%, rgba(255,107,53,0.05) 0%, transparent 40%),
+    radial-gradient(circle at 20% 80%, rgba(255,107,53,0.04) 0%, transparent 40%),
+    #0f0f0f;
+}
+
+/* ============================================
+   SHIMMER TEXT EFFECT
+   ============================================ */
+.aeris-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    var(--aeris-orange) 0%,
+    #ffb89a 40%,
+    var(--aeris-orange) 60%,
+    #ff8152 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* ============================================
+   TELEMETRY TICKER STRIP
+   ============================================ */
+.aeris-ticker {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow: hidden;
+}
+.aeris-ticker-content {
+  display: flex;
+  gap: 32px;
+  animation: dataStream 20s linear infinite;
+  white-space: nowrap;
+}
+
+/* ============================================
+   PROGRESS BAR ANIMATED
+   ============================================ */
+.aeris-progress {
+  height: 4px;
+  background: rgba(255,107,53,0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.aeris-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF6B35, #ff8c5a);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(255,107,53,0.5);
+  transition: width 0.8s ease;
+}
+
+/* ============================================
+   SECTION DIVIDER
+   ============================================ */
+.aeris-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--aeris-border) 30%, var(--aeris-border) 70%, transparent);
+}
+
+/* ============================================
+   TERMINAL / CODE BLOCK
+   ============================================ */
+.aeris-terminal {
+  background: #080808;
+  border: 1px solid rgba(255,107,53,0.15);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--aeris-orange);
+  overflow-x: auto;
+  position: relative;
+}
+.aeris-terminal::before {
+  content: '$ ';
+  color: rgba(255,107,53,0.4);
+}

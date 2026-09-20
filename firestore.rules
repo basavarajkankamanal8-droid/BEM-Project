@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Function to check if request is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Function to fetch current user record
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    // Check if user is Super Admin
+    function isSuperAdmin() {
+      return isAuthenticated() && (getUserData().role == 'super_admin' || request.auth.token.role == 'super_admin');
+    }
+    
+    // Check if user is Analyst
+    function isAnalyst() {
+      return isAuthenticated() && (getUserData().role == 'analyst' || isSuperAdmin());
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // Satellite Catalog
+    match /satellites/{satelliteId} {
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // GNSS & Sensor Telemetry readings
+    match /gnss_readings/{readingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /sensor_readings/{readingId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Earth Observations
+    match /earth_observations/{obsId} {
+      allow read: if resource.data.isPublic == true || isAuthenticated();
+      allow write: if isAnalyst();
+    }
+
+    // Satellite Images
+    match /images/{imageId} {
+      allow read: if resource.data.isPublic == true || isAuthenticated();
+      allow create, update: if isAnalyst();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Alerts
+    match /alerts/{alertId} {
+      // Public can only read verified & approved alerts
+      allow read: if resource.data.status == 'approved' || isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAnalyst();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Security & Threat Events (Super Admin only)
+    match /security_events/{eventId} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // Public Posts (Instagram / Official Communications)
+    match /public_posts/{postId} {
+      allow read: if true;
+      allow create, update: if isSuperAdmin();
+      allow delete: if isSuperAdmin();
+    }
+
+    // Audit logs & Data Sources
+    match /audit_logs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isAuthenticated();
+    }
+
+    match /data_sources/{sourceId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    match /system_settings/{settingId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+  }
+}
