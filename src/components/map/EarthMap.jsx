@@ -209,13 +209,19 @@ export const EarthMap = ({
     // Render alert markers with severity-based colors
     const severityColors = {
       CRITICAL: "#ef4444",
+      HIGH: "#FF6B35",
       HIGH_PRIORITY: "#FF6B35",
+      MEDIUM: "#f59e0b",
+      MODERATE: "#f59e0b",
+      LOW: "#10b981",
       OBSERVATION: "#888888",
     };
     
     (alertMarkers || []).forEach(alert => {
-      if (!alert.latitude || !alert.longitude) return;
-      const color = severityColors[alert.severity] || "#FF6B35";
+      const lat = alert.latitude ?? alert.lat;
+      const lng = alert.longitude ?? alert.lng;
+      if (!lat || !lng) return;
+      const color = severityColors[alert.severity] || severityColors[alert.threatLevel] || "#FF6B35";
       const icon = L.divIcon({
         className: "bem-severity-pin",
         html: `<div style="
@@ -229,14 +235,17 @@ export const EarthMap = ({
         iconSize: [14, 14],
         iconAnchor: [7, 7]
       });
-      const marker = L.marker([alert.latitude, alert.longitude], { icon }).addTo(layerGroupRef.current);
+      const marker = L.marker([lat, lng], { icon }).addTo(layerGroupRef.current);
       marker.bindPopup(`
-        <div style="background: #141414; color: #fff; padding: 10px 14px; font-family: 'JetBrains Mono', monospace; border-radius: 8px; border: 1px solid ${color}40; min-width: 200px;">
-          <div style="font-size: 10px; font-weight: 700; color: ${color}; margin-bottom: 4px; letter-spacing: 0.08em;">${alert.severity}</div>
+        <div style="background: #141414; color: #fff; padding: 10px 14px; font-family: 'JetBrains Mono', monospace; border-radius: 8px; border: 1px solid ${color}40; min-width: 210px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="font-size: 10px; font-weight: 700; color: ${color}; letter-spacing: 0.08em;">${alert.severity || alert.threatLevel || "ALERT"}</span>
+            <span style="font-size: 8px; color: ${alert.isVerified ? "#10b981" : "#FF6B35"}; font-weight: 700; padding: 1px 5px; border-radius: 3px; background: ${alert.isVerified ? "rgba(16,185,129,0.15)" : "rgba(255,107,53,0.15)"};">${alert.isVerified ? "VERIFIED ADVISORY" : "SIMULATION DATA"}</span>
+          </div>
           <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 6px;">${alert.type?.replace(/_/g, " ") || "Alert"}</div>
-          <div style="font-size: 11px; color: #a3a3a3; margin-bottom: 4px;">📍 ${alert.location || "Unknown"}</div>
-          <div style="font-size: 10px; color: #666;">Status: ${alert.status?.replace(/_/g, " ").toUpperCase() || "PENDING"}</div>
-          <div style="font-size: 9px; color: #FF6B35; margin-top: 6px;">[SIMULATION DATA]</div>
+          <div style="font-size: 11px; color: #a3a3a3; margin-bottom: 4px;">📍 ${alert.location || alert.placeName || "Unknown"}</div>
+          <div style="font-size: 10px; color: #666;">Status: ${(alert.status || "VERIFIED").replace(/_/g, " ").toUpperCase()}</div>
+          ${alert.description ? `<p style="font-size: 10px; color: #888; margin: 6px 0 0; line-height: 1.3;">${alert.description.slice(0, 110)}...</p>` : ""}
         </div>
       `);
     });

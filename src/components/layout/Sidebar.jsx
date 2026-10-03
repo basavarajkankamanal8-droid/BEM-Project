@@ -16,7 +16,8 @@ import {
   Users,
   ScrollText,
   LogOut,
-  X
+  X,
+  Clock
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 
@@ -31,15 +32,15 @@ export const Sidebar = ({ onClose }) => {
   };
 
   // Navigation Items with Role-Based Access:
-  // ADMIN: Full telemetry navigation
-  // PUBLIC_USER: Limited public dashboard navigation
+  // ADMIN: Full operational and telemetry navigation (PRD §3.1 & §15)
+  // PUBLIC_USER: Public dashboard, Report Alert, My Alerts, Verified Alerts, Monitoring, Images, Reports, Profile (PRD §3.2 & §13)
   const navItems = isPublicUser ? [
-    { to: "/public-dashboard",  label: "Public Dashboard",    icon: LayoutDashboard, exact: true },
-    { to: "/earth-monitoring",  label: "Earth Monitoring",    icon: Globe2 },
-    { to: "/images",            label: "Approved Images",     icon: ImageIcon },
-    { to: "/alerts",            label: "Public Alerts",       icon: AlertTriangle, badge: "3" },
-    { to: "/reports",           label: "Public Reports",      icon: FileText },
-    { to: "/profile",           label: "My Profile",          icon: UserCheck },
+    { to: "/public-dashboard",           label: "India Monitoring",    icon: LayoutDashboard, exact: true },
+    { to: "/dashboard/report-alert",     label: "Report an Alert",     icon: AlertTriangle, badge: "NEW" },
+    { to: "/dashboard/my-alerts",        label: "My Alerts",           icon: Clock },
+    { to: "/dashboard/verified-alerts",  label: "Verified Alerts",     icon: ShieldCheck },
+    { to: "/profile",                    label: "My Profile",          icon: UserCheck },
+    { to: "/public",                     label: "Public Portal",       icon: Globe2 },
   ] : [
     { to: "/",                 label: "Overview",            icon: LayoutDashboard, exact: true },
     { to: "/gnss",             label: "GNSS Receiver",       icon: Radio },

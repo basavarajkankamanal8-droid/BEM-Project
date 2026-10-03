@@ -1,473 +1,828 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { dataStore } from "../../services/dataStore";
 import { useAuth } from "../../context/AuthContext";
 import { DataBadge } from "../../components/layout/DataBadge";
-import { StatusBadge } from "../../components/ui/StatusBadge";
 import { Modal } from "../../components/ui/Modal";
-import { InstagramService } from "../../services/instagramService";
 import { 
   AlertTriangle, CheckCircle2, Share2, 
   Filter, ArrowRight, XCircle, Eye, Clock,
-  ShieldCheck, RefreshCw
+  ShieldCheck, RefreshCw, UserCheck, MapPin, 
+  Building, Calendar, Camera, Info, PauseCircle,
+  Layers, Search, FileText
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-
-const severityConfig = {
-  CRITICAL:     { bg: "rgba(239,68,68,0.1)",  border: "rgba(239,68,68,0.35)",  tagBg: "#ef4444", text: "#0f0f0f",  label: "CRITICAL" },
-  HIGH_PRIORITY:{ bg: "rgba(255,107,53,0.06)", border: "rgba(255,107,53,0.2)", tagBg: "#FF6B35", text: "#0f0f0f",  label: "HIGH PRIORITY" },
-  OBSERVATION:  { bg: "rgba(14,14,14,0.8)",    border: "rgba(38,38,38,0.8)",   tagBg: "#262626", text: "#a3a3a3", label: "OBSERVATION" },
-};
-
-// Full workflow states per PRD §26
-const WORKFLOW_STATES = {
-  new:           { label: "NEW",          color: "#60a5fa", bg: "rgba(96,165,250,0.1)",  border: "rgba(96,165,250,0.3)", icon: Clock },
-  under_review:  { label: "UNDER REVIEW", color: "#FF6B35", bg: "rgba(255,107,53,0.1)",  border: "rgba(255,107,53,0.3)", icon: Eye },
-  verified:      { label: "VERIFIED",     color: "#10b981", bg: "rgba(16,185,129,0.1)",  border: "rgba(16,185,129,0.3)", icon: CheckCircle2 },
-  rejected:      { label: "REJECTED",     color: "#ef4444", bg: "rgba(239,68,68,0.1)",   border: "rgba(239,68,68,0.3)",  icon: XCircle },
-  approved:      { label: "APPROVED",     color: "#10b981", bg: "rgba(16,185,129,0.1)",  border: "rgba(16,185,129,0.3)", icon: ShieldCheck },
-  published:     { label: "PUBLISHED",    color: "#a855f7", bg: "rgba(168,85,247,0.1)",  border: "rgba(168,85,247,0.3)", icon: Share2 },
-  public_posted: { label: "PUBLIC POSTED", color: "#a855f7", bg: "rgba(168,85,247,0.1)", border: "rgba(168,85,247,0.3)", icon: Share2 },
-  resolved:      { label: "RESOLVED",     color: "#6b7280", bg: "rgba(107,114,128,0.1)", border: "rgba(107,114,128,0.3)",icon: RefreshCw },
-};
-
-// Valid state transitions
-const TRANSITIONS = {
-  new:          ["under_review", "rejected"],
-  under_review: ["verified", "rejected"],
-  verified:     ["approved", "rejected"],
-  approved:     ["published", "resolved"],
-  published:    ["resolved"],
-  public_posted:["resolved"],
-  rejected:     ["new"],
-  resolved:     [],
-};
-
-const transitionLabels = {
-  under_review: { label: "Begin Review", icon: Eye, style: "orange" },
-  verified:     { label: "Verify Alert", icon: CheckCircle2, style: "green" },
-  approved:     { label: "Approve for Publishing", icon: ShieldCheck, style: "green" },
-  published:    { label: "Publish to Public", icon: Share2, style: "purple" },
-  rejected:     { label: "Reject (False Positive)", icon: XCircle, style: "red" },
-  resolved:     { label: "Mark Resolved", icon: RefreshCw, style: "neutral" },
-  new:          { label: "Reopen", icon: Clock, style: "blue" },
-};
-
-const buttonStyles = {
-  green:   { bg: "#10b981", hoverBg: "#059669", color: "#0f0f0f" },
-  red:     { bg: "rgba(239,68,68,0.15)", hoverBg: "rgba(239,68,68,0.25)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.3)" },
-  orange:  { bg: "rgba(255,107,53,0.15)", hoverBg: "rgba(255,107,53,0.25)", color: "#FF6B35", border: "1px solid rgba(255,107,53,0.3)" },
-  purple:  { bg: "#a855f7", hoverBg: "#9333ea", color: "#0f0f0f" },
-  blue:    { bg: "rgba(96,165,250,0.15)", hoverBg: "rgba(96,165,250,0.25)", color: "#60a5fa", border: "1px solid rgba(96,165,250,0.3)" },
-  neutral: { bg: "rgba(38,38,38,0.7)", hoverBg: "rgba(60,60,60,0.8)", color: "#a3a3a3", border: "1px solid rgba(60,60,60,0.8)" },
-};
 
 export const AlertSystem = () => {
-  const [alerts, setAlerts] = useState(() => dataStore.get("alerts"));
-  const [filterSeverity, setFilterSeverity] = useState("ALL");
-  const [filterStatus, setFilterStatus] = useState("ALL");
-  const [confirmModal, setConfirmModal] = useState(null);
   const { currentUser, isSuperAdmin } = useAuth();
-  const navigate = useNavigate();
 
-  const handleStatusTransition = (alertId, nextStatus) => {
-    dataStore.update("alerts", a => a.alertId === alertId, {
-      status: nextStatus,
-      reviewedBy: currentUser ? currentUser.name : "System Admin",
-      lastUpdated: new Date().toISOString(),
+  // Tabs: 'citizen' (Citizen Reports Intake) or 'system' (Telemetry Ingestion Alerts)
+  const [activeTab, setActiveTab] = useState("citizen");
+
+  // Citizen Reports State (PRD §28 - §36)
+  const [citizenReports, setCitizenReports] = useState(() => dataStore.get("citizen_alert_reports"));
+  const [citizenFilterStatus, setCitizenFilterStatus] = useState("ALL"); // ALL, PENDING, APPROVED, HOLD, REJECTED
+  const [citizenFilterEventType, setCitizenFilterEventType] = useState("ALL");
+  const [selectedCitizenReport, setSelectedCitizenReport] = useState(null);
+
+  // Accept Modal State (PRD §32)
+  const [acceptModal, setAcceptModal] = useState(null);
+  const [verifiedThreatLevel, setVerifiedThreatLevel] = useState("MEDIUM");
+  const [adminNotes, setAdminNotes] = useState("");
+
+  // Hold / Reject Modal State (PRD §34 & §35)
+  const [holdModal, setHoldModal] = useState(null);
+  const [holdReason, setHoldReason] = useState("");
+  const [rejectModal, setRejectModal] = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+
+  // System Telemetry Alerts State (PRD §49)
+  const [systemAlerts, setSystemAlerts] = useState(() => dataStore.get("alerts"));
+  const [systemFilterSeverity, setSystemFilterSeverity] = useState("ALL");
+
+  // Subscribe to real-time events for instant updates (PRD §28 & §71)
+  useEffect(() => {
+    const unsub1 = dataStore.subscribe("citizen_alert_reports", setCitizenReports);
+    const unsub2 = dataStore.subscribe("alerts", setSystemAlerts);
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, []);
+
+  // Citizen count metrics
+  const pendingCitizenCount = citizenReports.filter(r => r.status === "PENDING REVIEW" || r.status === "PENDING").length;
+  const approvedCitizenCount = citizenReports.filter(r => r.status === "VERIFIED" || r.status === "ACCEPTED" || r.status === "PUBLISHED").length;
+  const holdCitizenCount = citizenReports.filter(r => r.status === "ON HOLD" || r.status === "HOLD").length;
+  const rejectedCitizenCount = citizenReports.filter(r => r.status === "REJECTED").length;
+
+  // Filter citizen reports per PRD §29
+  const filteredCitizenReports = citizenReports.filter(r => {
+    let matchesStatus = true;
+    if (citizenFilterStatus === "PENDING") matchesStatus = r.status === "PENDING REVIEW" || r.status === "PENDING";
+    else if (citizenFilterStatus === "APPROVED") matchesStatus = r.status === "VERIFIED" || r.status === "ACCEPTED" || r.status === "PUBLISHED";
+    else if (citizenFilterStatus === "HOLD") matchesStatus = r.status === "ON HOLD" || r.status === "HOLD";
+    else if (citizenFilterStatus === "REJECTED") matchesStatus = r.status === "REJECTED";
+
+    const matchesType = citizenFilterEventType === "ALL" || r.eventType === citizenFilterEventType;
+    return matchesStatus && matchesType;
+  });
+
+  // Action: Accept & Publish Alert (PRD §32 & §33)
+  const handleConfirmAccept = () => {
+    if (!acceptModal) return;
+    const reportId = acceptModal.reportId;
+    const reviewer = currentUser?.name || "Elena Rostova (Administrator)";
+
+    // 1. Update citizen_alert_reports
+    dataStore.update("citizen_alert_reports", r => r.reportId === reportId, {
+      status: "VERIFIED",
+      verifiedThreatLevel: verifiedThreatLevel,
+      adminNotes: adminNotes,
+      reviewedBy: reviewer,
+      reviewedAt: new Date().toISOString(),
+      publishedAt: new Date().toISOString()
     });
+
+    // 2. Also publish to system alerts collection for cross-system availability (PRD §67)
+    const newSystemAlert = {
+      alertId: `ALT-PUB-${Date.now().toString().slice(-4)}`,
+      type: acceptModal.eventType.toUpperCase().replace(/\s+/g, "_"),
+      location: `${acceptModal.placeName}, ${acceptModal.district}`,
+      severity: verifiedThreatLevel === "CRITICAL" ? "CRITICAL" : verifiedThreatLevel === "HIGH" ? "HIGH_PRIORITY" : "OBSERVATION",
+      description: acceptModal.description,
+      evidence: `CITIZEN REPORT ${reportId} (Reviewed & Verified by ${reviewer})`,
+      status: "approved",
+      reviewedBy: reviewer,
+      dataSource: "VERIFIED DATA",
+      createdAt: new Date().toISOString()
+    };
+    dataStore.add("alerts", newSystemAlert);
+
+    // 3. Log audit event (PRD §70)
     dataStore.add("audit_logs", {
       id: "aud_" + Date.now(),
-      actor: currentUser ? currentUser.name : "System Admin",
-      action: `ALERT_STATUS_${nextStatus.toUpperCase()}`,
-      target: alertId,
+      actor: reviewer,
+      action: "CITIZEN_ALERT_ACCEPTED_AND_PUBLISHED",
+      target: reportId,
       timestamp: new Date().toISOString(),
-      ipAddress: "10.0.4.1"
+      metadata: { verifiedThreatLevel, notes: adminNotes }
     });
-    setAlerts(dataStore.get("alerts"));
-    setConfirmModal(null);
+
+    setAcceptModal(null);
+    setAdminNotes("");
+    if (selectedCitizenReport?.reportId === reportId) {
+      setSelectedCitizenReport(prev => ({ ...prev, status: "VERIFIED", verifiedThreatLevel }));
+    }
   };
 
-  const handlePromoteToInstagram = (alert) => {
-    InstagramService.stagePublicPost({
-      alert,
-      approvedBy: currentUser ? currentUser.name : "System Admin"
+  // Action: Hold Alert (PRD §34)
+  const handleConfirmHold = () => {
+    if (!holdModal) return;
+    const reportId = holdModal.reportId;
+    const reviewer = currentUser?.name || "Elena Rostova (Administrator)";
+
+    dataStore.update("citizen_alert_reports", r => r.reportId === reportId, {
+      status: "ON HOLD",
+      adminReason: holdReason || "Additional verification required by operations team.",
+      reviewedBy: reviewer,
+      reviewedAt: new Date().toISOString()
     });
-    handleStatusTransition(alert.alertId, "public_posted");
-    navigate("/public-posts");
+
+    dataStore.add("audit_logs", {
+      id: "aud_" + Date.now(),
+      actor: reviewer,
+      action: "CITIZEN_ALERT_PLACED_ON_HOLD",
+      target: reportId,
+      timestamp: new Date().toISOString(),
+      metadata: { reason: holdReason }
+    });
+
+    setHoldModal(null);
+    setHoldReason("");
   };
 
-  const filteredAlerts = alerts.filter(a => {
-    const sevMatch = filterSeverity === "ALL" || a.severity === filterSeverity;
-    const statMatch = filterStatus === "ALL" || a.status === filterStatus;
-    return sevMatch && statMatch;
-  });
+  // Action: Reject Alert (PRD §35)
+  const handleConfirmReject = () => {
+    if (!rejectModal) return;
+    const reportId = rejectModal.reportId;
+    const reviewer = currentUser?.name || "Elena Rostova (Administrator)";
 
-  // Count alerts by status for pipeline display
-  const statusCounts = {};
-  alerts.forEach(a => {
-    statusCounts[a.status] = (statusCounts[a.status] || 0) + 1;
-  });
+    dataStore.update("citizen_alert_reports", r => r.reportId === reportId, {
+      status: "REJECTED",
+      adminReason: rejectReason || "Inconclusive report or unverified duplicate observation.",
+      reviewedBy: reviewer,
+      reviewedAt: new Date().toISOString()
+    });
 
-  const panelStyle = {
-    background: "rgba(14,14,14,0.9)",
-    border: "1px solid rgba(38,38,38,0.7)",
-    borderRadius: 14,
-    padding: "18px 22px",
+    dataStore.add("audit_logs", {
+      id: "aud_" + Date.now(),
+      actor: reviewer,
+      action: "CITIZEN_ALERT_REJECTED",
+      target: reportId,
+      timestamp: new Date().toISOString(),
+      metadata: { reason: rejectReason }
+    });
+
+    setRejectModal(null);
+    setRejectReason("");
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: 1400, margin: "0 auto" }}>
+    <div style={{ padding: "24px", maxWidth: 1440, margin: "0 auto" }}>
 
-      {/* Header */}
+      {/* ── HEADER ── */}
       <div style={{
         display: "flex", flexWrap: "wrap", alignItems: "center",
         justifyContent: "space-between", gap: 16,
-        background: "rgba(16,16,16,0.8)",
-        border: "1px solid rgba(255,107,53,0.12)",
-        borderRadius: 14, padding: "18px 24px",
-        marginBottom: 20, backdropFilter: "blur(12px)"
+        background: "rgba(16,16,16,0.85)", border: "1px solid rgba(255,107,53,0.15)",
+        borderRadius: 14, padding: "20px 24px", marginBottom: 20
       }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 4 }}>
-            <h1 className="font-display" style={{
-              fontSize: 18, fontWeight: 800, color: "white", letterSpacing: "0.08em", margin: 0,
-              display: "flex", alignItems: "center", gap: 10
-            }}>
-              <AlertTriangle style={{ width: 18, height: 18, color: "#ef4444" }} />
-              ENVIRONMENTAL & INTEGRITY ALERT SYSTEM
+            <h1 className="font-display" style={{ fontSize: 18, fontWeight: 800, color: "white", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
+              <AlertTriangle style={{ width: 20, height: 20, color: "#FF6B35" }} />
+              BEM ALERT VERIFICATION & REVIEW CENTER
             </h1>
-            <DataBadge isSimulation={true} />
+            <DataBadge isSimulation={true} size="xs" />
           </div>
-          <p style={{ fontSize: 11, color: "#666666", margin: 0 }}>
-            Human-in-the-loop workflow: DATA → ANALYSIS → POSSIBLE ALERT → HUMAN REVIEW → VERIFIED → PUBLIC
+          <p style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#888888", margin: 0 }}>
+            Real-time citizen alert intake, administrative verification, and public alert publishing pipeline (PRD §28 - §36).
           </p>
         </div>
-        {/* Filters */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <Filter style={{ width: 13, height: 13, color: "#555555" }} />
-          <select
-            value={filterSeverity}
-            onChange={(e) => setFilterSeverity(e.target.value)}
-            style={{
-              background: "rgba(10,10,10,0.9)", border: "1px solid rgba(38,38,38,0.8)",
-              borderRadius: 8, padding: "6px 12px",
-              fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#d4d4d4",
-              outline: "none", cursor: "pointer"
-            }}
-          >
-            <option value="ALL">All Severities</option>
-            <option value="CRITICAL">Critical Only</option>
-            <option value="HIGH_PRIORITY">High Priority Only</option>
-            <option value="OBSERVATION">Observation Only</option>
-          </select>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            style={{
-              background: "rgba(10,10,10,0.9)", border: "1px solid rgba(38,38,38,0.8)",
-              borderRadius: 8, padding: "6px 12px",
-              fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#d4d4d4",
-              outline: "none", cursor: "pointer"
-            }}
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="new">New</option>
-            <option value="under_review">Under Review</option>
-            <option value="verified">Verified</option>
-            <option value="approved">Approved</option>
-            <option value="published">Published</option>
-            <option value="rejected">Rejected</option>
-            <option value="resolved">Resolved</option>
-          </select>
+
+        {/* Real-time Indicator (PRD §28 & §71) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "6px 14px", borderRadius: 8,
+            background: pendingCitizenCount > 0 ? "rgba(255,107,53,0.15)" : "rgba(16,185,129,0.1)",
+            border: `1px solid ${pendingCitizenCount > 0 ? "rgba(255,107,53,0.4)" : "rgba(16,185,129,0.3)"}`,
+            fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800,
+            color: pendingCitizenCount > 0 ? "#FF6B35" : "#10b981"
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: pendingCitizenCount > 0 ? "#FF6B35" : "#10b981" }} className="animate-pulse" />
+            <span>ALERTS: {pendingCitizenCount} NEW PENDING REVIEW</span>
+          </div>
         </div>
       </div>
 
-      {/* Workflow Pipeline Bar */}
-      <div style={{ ...panelStyle, marginBottom: 20 }}>
-        <div style={{
-          fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-          color: "#444444", letterSpacing: "0.12em", textTransform: "uppercase",
-          marginBottom: 12
-        }}>
-          ALERT VERIFICATION WORKFLOW PIPELINE:
-        </div>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
-          {[
-            { key: "new",          label: "1. New Alert" },
-            { key: "under_review", label: "2. Under Review" },
-            { key: "verified",     label: "3. Verified" },
-            { key: "approved",     label: "4. Approved" },
-            { key: "published",    label: "5. Published" },
-            { key: "resolved",     label: "6. Resolved" },
-          ].map(({ key, label }, i, arr) => {
-            const ws = WORKFLOW_STATES[key];
-            const count = statusCounts[key] || 0;
-            return (
-              <React.Fragment key={key}>
+      {/* ── MAIN TABS: CITIZEN INTAKE vs TELEMETRY ALERTS ── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20, borderBottom: "1px solid rgba(38,38,38,0.7)", paddingBottom: 14 }}>
+        <button
+          onClick={() => setActiveTab("citizen")}
+          style={{
+            padding: "9px 18px", borderRadius: 8, cursor: "pointer",
+            fontSize: 12, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+            background: activeTab === "citizen" ? "#FF6B35" : "transparent",
+            color: activeTab === "citizen" ? "#0f0f0f" : "#888888",
+            border: activeTab === "citizen" ? "none" : "1px solid rgba(38,38,38,0.8)",
+            display: "flex", alignItems: "center", gap: 8
+          }}
+        >
+          <UserCheck style={{ width: 14, height: 14 }} />
+          <span>CITIZEN ALERT REPORTS ({citizenReports.length})</span>
+          {pendingCitizenCount > 0 && (
+            <span style={{
+              background: activeTab === "citizen" ? "#0f0f0f" : "#FF6B35",
+              color: activeTab === "citizen" ? "#FF6B35" : "#0f0f0f",
+              padding: "1px 6px", borderRadius: 10, fontSize: 10
+            }}>
+              {pendingCitizenCount}
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab("system")}
+          style={{
+            padding: "9px 18px", borderRadius: 8, cursor: "pointer",
+            fontSize: 12, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+            background: activeTab === "system" ? "#FF6B35" : "transparent",
+            color: activeTab === "system" ? "#0f0f0f" : "#888888",
+            border: activeTab === "system" ? "none" : "1px solid rgba(38,38,38,0.8)",
+            display: "flex", alignItems: "center", gap: 8
+          }}
+        >
+          <Layers style={{ width: 14, height: 14 }} />
+          <span>TELEMETRY & RADAR INGEST ({systemAlerts.length})</span>
+        </button>
+      </div>
+
+      {/* ════ TAB 1: CITIZEN ALERT REPORTS (PRD §28 - §36) ════ */}
+      {activeTab === "citizen" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+          
+          {/* Subtabs per PRD §29: ALL, PENDING, APPROVED, HOLD, REJECTED */}
+          <div style={{
+            display: "flex", flexWrap: "wrap", alignItems: "center",
+            justifyContent: "space-between", gap: 12,
+            background: "rgba(14,14,14,0.9)", border: "1px solid rgba(38,38,38,0.7)",
+            borderRadius: 12, padding: "12px 18px"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#666", marginRight: 4 }}>
+                FILTER STATUS:
+              </span>
+              {[
+                { key: "ALL", label: `ALL (${citizenReports.length})` },
+                { key: "PENDING", label: `PENDING (${pendingCitizenCount})`, color: "#FF6B35" },
+                { key: "APPROVED", label: `APPROVED (${approvedCitizenCount})`, color: "#10b981" },
+                { key: "HOLD", label: `ON HOLD (${holdCitizenCount})`, color: "#f59e0b" },
+                { key: "REJECTED", label: `REJECTED (${rejectedCitizenCount})`, color: "#ef4444" }
+              ].map(({ key, label, color }) => (
                 <button
-                  onClick={() => setFilterStatus(filterStatus === key ? "ALL" : key)}
+                  key={key}
+                  onClick={() => setCitizenFilterStatus(key)}
                   style={{
-                    padding: "5px 10px", borderRadius: 6,
-                    fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
-                    background: filterStatus === key ? ws.bg : "rgba(10,10,10,0.8)",
-                    border: `1px solid ${filterStatus === key ? ws.border.replace(")", ",0.8)").replace("rgba", "rgba") : "rgba(38,38,38,0.8)"}`,
-                    color: filterStatus === key ? ws.color : "#a3a3a3",
-                    letterSpacing: "0.04em",
-                    cursor: "pointer", transition: "all 0.2s",
-                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "5px 12px", borderRadius: 6, cursor: "pointer",
+                    fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                    background: citizenFilterStatus === key ? (color || "#FF6B35") : "transparent",
+                    color: citizenFilterStatus === key ? "#0f0f0f" : (color || "#888888"),
+                    border: citizenFilterStatus === key ? "none" : "1px solid rgba(38,38,38,0.8)",
+                    transition: "all 0.15s"
                   }}
                 >
                   {label}
-                  {count > 0 && (
-                    <span style={{
-                      padding: "0 5px", borderRadius: 4,
-                      fontSize: 9, fontWeight: 800,
-                      background: ws.bg, color: ws.color,
-                      minWidth: 16, textAlign: "center",
-                    }}>
-                      {count}
-                    </span>
-                  )}
                 </button>
-                {i < arr.length - 1 && (
-                  <ArrowRight style={{ width: 11, height: 11, color: "#2a2a2a" }} />
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-      </div>
+              ))}
+            </div>
 
-      {/* Alert Cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {filteredAlerts.length === 0 && (
-          <div style={{
-            padding: 32, borderRadius: 14, textAlign: "center",
-            background: "rgba(14,14,14,0.8)", border: "1px solid rgba(38,38,38,0.7)",
-          }}>
-            <AlertTriangle style={{ width: 24, height: 24, color: "#555", margin: "0 auto 12px" }} />
-            <div style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace", color: "#666" }}>
-              No alerts match the current filter criteria.
+            {/* Event Type Filter */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Filter style={{ width: 13, height: 13, color: "#888" }} />
+              <select
+                value={citizenFilterEventType}
+                onChange={e => setCitizenFilterEventType(e.target.value)}
+                style={{
+                  background: "rgba(10,10,10,0.9)", border: "1px solid rgba(38,38,38,0.8)",
+                  borderRadius: 6, padding: "5px 10px", color: "white", fontSize: 10,
+                  fontFamily: "'JetBrains Mono', monospace", outline: "none"
+                }}
+              >
+                <option value="ALL">All Event Types</option>
+                <option value="Heavy Rainfall">Heavy Rainfall</option>
+                <option value="Flood">Flood</option>
+                <option value="Landslide">Landslide</option>
+                <option value="Earthquake">Earthquake</option>
+                <option value="Fire">Fire</option>
+                <option value="Cyclone">Cyclone</option>
+              </select>
             </div>
           </div>
-        )}
-        {filteredAlerts.map((alert) => {
-          const sev = severityConfig[alert.severity] || severityConfig.OBSERVATION;
-          const ws = WORKFLOW_STATES[alert.status] || WORKFLOW_STATES.new;
-          const allowedTransitions = TRANSITIONS[alert.status] || [];
 
-          return (
-            <div
-              key={alert.alertId}
-              style={{
-                background: sev.bg,
-                border: `1px solid ${sev.border}`,
-                borderRadius: 14, overflow: "hidden",
-                transition: "all 0.2s"
-              }}
-            >
-              {/* Alert top stripe */}
-              <div style={{
-                height: 2,
-                background: alert.severity === "CRITICAL"
-                  ? "linear-gradient(90deg, transparent, #ef4444, transparent)"
-                  : alert.severity === "HIGH_PRIORITY"
-                  ? "linear-gradient(90deg, transparent, #FF6B35, transparent)"
-                  : "transparent"
-              }} />
-
-              <div style={{ padding: "18px 22px" }}>
-                {/* Alert header */}
+          {/* Cards Grid & Detail Panel */}
+          <div style={{ display: "grid", gridTemplateColumns: selectedCitizenReport ? "1.1fr 1fr" : "1fr", gap: 20 }}>
+            
+            {/* Cards List per PRD §30 */}
+            <div style={{ display: "grid", gridTemplateColumns: selectedCitizenReport ? "1fr" : "repeat(auto-fill, minmax(380px, 1fr))", gap: 16 }}>
+              {filteredCitizenReports.length === 0 ? (
                 <div style={{
-                  display: "flex", flexWrap: "wrap", alignItems: "center",
-                  justifyContent: "space-between", gap: 12,
-                  paddingBottom: 14, borderBottom: "1px solid rgba(38,38,38,0.5)",
-                  marginBottom: 14
+                  gridColumn: "1 / -1", padding: 40, textAlign: "center",
+                  background: "rgba(14,14,14,0.7)", borderRadius: 12, border: "1px solid rgba(38,38,38,0.6)",
+                  color: "#666", fontFamily: "'JetBrains Mono', monospace", fontSize: 12
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                    {/* Severity badge */}
-                    <span style={{
-                      padding: "3px 10px", borderRadius: 5,
-                      fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 800,
-                      background: sev.tagBg, color: sev.text, letterSpacing: "0.08em",
-                      boxShadow: alert.severity === "CRITICAL" ? "0 0 12px rgba(239,68,68,0.3)" : "none"
-                    }}>
-                      {sev.label}
-                    </span>
-                    <span style={{
-                      fontSize: 13, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: "white"
-                    }}>
-                      {alert.alertId}
-                    </span>
-                    <span style={{
-                      fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#555555"
-                    }}>
-                      ({alert.type})
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <DataBadge isSimulation={true} size="xs" />
-                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#555555" }}>
-                      {new Date(alert.createdAt).toLocaleString()}
-                    </span>
-                  </div>
+                  No citizen reports in this category.
                 </div>
+              ) : (
+                filteredCitizenReports.map((report) => (
+                  <div
+                    key={report.reportId}
+                    style={{
+                      background: "rgba(14,14,14,0.95)",
+                      border: `1px solid ${selectedCitizenReport?.reportId === report.reportId ? "#FF6B35" : "rgba(38,38,38,0.8)"}`,
+                      borderRadius: 14, padding: "18px 20px",
+                      display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 14,
+                      boxShadow: selectedCitizenReport?.reportId === report.reportId ? "0 4px 20px rgba(255,107,53,0.15)" : "none",
+                      transition: "all 0.2s"
+                    }}
+                  >
+                    <div>
+                      {/* Top Bar: Report ID + Status Badge */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, fontFamily: "'JetBrains Mono', monospace", fontWeight: 800, color: "#FF6B35" }}>
+                            {report.reportId}
+                          </span>
+                          <span style={{
+                            fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                            padding: "2px 6px", borderRadius: 4, background: "rgba(255,255,255,0.06)", color: "#888"
+                          }}>
+                            {report.source || "CITIZEN REPORT"}
+                          </span>
+                        </div>
 
-                {/* Description & Evidence */}
-                <div style={{ marginBottom: 14 }}>
-                  <p style={{ fontSize: 13, color: "#d4d4d4", margin: "0 0 10px", lineHeight: 1.6 }}>
-                    {alert.description}
-                  </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
-                    {[
-                      { emoji: "📍", key: "Location", val: alert.location, valColor: "#ededed" },
-                      { emoji: "🔬", key: "Evidence", val: alert.evidence, valColor: "#FF6B35" },
-                      { emoji: "👤", key: "Reviewer", val: alert.reviewedBy || "Pending", valColor: "#ededed" },
-                    ].map(({ emoji, key, val, valColor }) => (
-                      <div key={key} style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#555555" }}>
-                        {emoji} {key}: <span style={{ color: valColor, fontWeight: 600 }}>{val}</span>
+                        <span style={{
+                          fontSize: 9, fontFamily: "'JetBrains Mono', monospace", fontWeight: 800,
+                          padding: "3px 8px", borderRadius: 4,
+                          background: report.status === "VERIFIED" ? "rgba(16,185,129,0.15)" : report.status === "ON HOLD" ? "rgba(245,158,11,0.15)" : report.status === "REJECTED" ? "rgba(239,68,68,0.15)" : "rgba(255,107,53,0.15)",
+                          color: report.status === "VERIFIED" ? "#10b981" : report.status === "ON HOLD" ? "#f59e0b" : report.status === "REJECTED" ? "#ef4444" : "#FF6B35",
+                          border: `1px solid ${report.status === "VERIFIED" ? "rgba(16,185,129,0.3)" : report.status === "ON HOLD" ? "rgba(245,158,11,0.3)" : report.status === "REJECTED" ? "rgba(239,68,68,0.3)" : "rgba(255,107,53,0.3)"}`
+                        }}>
+                          {report.status}
+                        </span>
                       </div>
-                    ))}
-                  </div>
-                </div>
 
-                {/* Status & Actions */}
-                <div style={{
-                  display: "flex", flexWrap: "wrap", alignItems: "center",
-                  justifyContent: "space-between", gap: 12,
-                  paddingTop: 14, borderTop: "1px solid rgba(38,38,38,0.5)"
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#444444" }}>
-                      Status:
-                    </span>
-                    <span style={{
-                      padding: "4px 10px", borderRadius: 6, fontSize: 10,
-                      fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, letterSpacing: "0.06em",
-                      background: ws.bg, border: `1px solid ${ws.border}`, color: ws.color,
-                      display: "flex", alignItems: "center", gap: 5,
+                      {/* Event Type & Reporter Name */}
+                      <div style={{ marginBottom: 10 }}>
+                        <h3 className="font-display" style={{ fontSize: 15, fontWeight: 700, color: "white", margin: 0 }}>
+                          {report.eventType}
+                        </h3>
+                        <div style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#888888", marginTop: 2 }}>
+                          Reporter: <strong style={{ color: "#ededed" }}>{report.reporterName}</strong>
+                        </div>
+                      </div>
+
+                      {/* Location info (PRD §30) */}
+                      <div style={{
+                        display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6,
+                        background: "rgba(8,8,8,0.7)", padding: "10px 12px", borderRadius: 8,
+                        fontSize: 10, fontFamily: "'JetBrains Mono', monospace", marginBottom: 12
+                      }}>
+                        <div><span style={{ color: "#666" }}>PLACE:</span> <span style={{ color: "white" }}>{report.placeName}</span></div>
+                        <div><span style={{ color: "#666" }}>LANDMARK:</span> <span style={{ color: "white" }}>{report.nearbyLandmark}</span></div>
+                        <div><span style={{ color: "#666" }}>DISTRICT:</span> <span style={{ color: "white" }}>{report.district}</span></div>
+                        <div><span style={{ color: "#666" }}>STATE:</span> <span style={{ color: "white" }}>{report.state} ({report.pinCode})</span></div>
+                      </div>
+
+                      {/* Threat & Timestamp */}
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#888" }}>
+                        <span>
+                          REPORTED THREAT: <strong style={{
+                            color: report.reportedThreatLevel === "CRITICAL" ? "#ef4444" : report.reportedThreatLevel === "HIGH" ? "#FF6B35" : "#f59e0b"
+                          }}>{report.reportedThreatLevel}</strong>
+                        </span>
+                        <span>{report.incidentDate}</span>
+                      </div>
+                    </div>
+
+                    {/* PRD §30 Action Buttons: VIEW, ACCEPT, HOLD, REJECT */}
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 6,
+                      borderTop: "1px solid rgba(38,38,38,0.7)", paddingTop: 12
                     }}>
-                      {React.createElement(ws.icon, { style: { width: 11, height: 11 } })}
-                      {ws.label}
-                    </span>
-                  </div>
-
-                  {/* Transition action buttons */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    {allowedTransitions.map(nextStatus => {
-                      const tl = transitionLabels[nextStatus];
-                      if (!tl) return null;
-                      const bs = buttonStyles[tl.style];
-                      const Icon = tl.icon;
-
-                      // For destructive actions (publish, reject), show confirmation
-                      const needsConfirm = ["published", "rejected"].includes(nextStatus);
-
-                      return (
-                        <button
-                          key={nextStatus}
-                          onClick={() => {
-                            if (needsConfirm) {
-                              setConfirmModal({ alertId: alert.alertId, nextStatus, label: tl.label });
-                            } else {
-                              handleStatusTransition(alert.alertId, nextStatus);
-                            }
-                          }}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 6,
-                            padding: "8px 14px", borderRadius: 8, cursor: "pointer",
-                            fontSize: 11, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                            background: bs.bg, color: bs.color,
-                            border: bs.border || "none",
-                            transition: "all 0.2s", letterSpacing: "0.04em"
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = bs.hoverBg}
-                          onMouseLeave={e => e.currentTarget.style.background = bs.bg}
-                        >
-                          <Icon style={{ width: 13, height: 13 }} />
-                          {tl.label}
-                        </button>
-                      );
-                    })}
-
-                    {/* Special: Promote to Instagram when approved */}
-                    {alert.status === "approved" && isSuperAdmin && (
                       <button
-                        onClick={() => handlePromoteToInstagram(alert)}
-                        className="aeris-btn-primary"
+                        onClick={() => setSelectedCitizenReport(report)}
                         style={{
-                          display: "flex", alignItems: "center", gap: 7,
-                          padding: "8px 16px", borderRadius: 8, cursor: "pointer",
-                          fontSize: 11, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                          letterSpacing: "0.05em", border: "none"
+                          flex: 1, padding: "7px 0", borderRadius: 6, cursor: "pointer",
+                          background: "rgba(38,38,38,0.7)", border: "1px solid rgba(60,60,60,0.8)",
+                          color: "white", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 4
                         }}
                       >
-                        <Share2 style={{ width: 13, height: 13 }} />
-                        Publish Official Alert
+                        <Eye style={{ width: 12, height: 12 }} />
+                        <span>VIEW</span>
                       </button>
-                    )}
 
-                    {(alert.status === "public_posted" || alert.status === "published") && (
-                      <span style={{
-                        display: "flex", alignItems: "center", gap: 6,
-                        fontSize: 11, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                        color: "#10b981"
-                      }}>
-                        <CheckCircle2 style={{ width: 14, height: 14 }} />
-                        Broadcasted to Public Channels
+                      {report.status !== "VERIFIED" && report.status !== "PUBLISHED" && (
+                        <button
+                          onClick={() => {
+                            setAcceptModal(report);
+                            setVerifiedThreatLevel(report.reportedThreatLevel || "MEDIUM");
+                          }}
+                          style={{
+                            flex: 1.2, padding: "7px 0", borderRadius: 6, cursor: "pointer",
+                            background: "#10b981", border: "none", color: "#0f0f0f",
+                            fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 800,
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 4
+                          }}
+                        >
+                          <CheckCircle2 style={{ width: 12, height: 12 }} />
+                          <span>ACCEPT</span>
+                        </button>
+                      )}
+
+                      {report.status !== "ON HOLD" && (
+                        <button
+                          onClick={() => setHoldModal(report)}
+                          style={{
+                            flex: 1, padding: "7px 0", borderRadius: 6, cursor: "pointer",
+                            background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.3)",
+                            color: "#f59e0b", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700
+                          }}
+                        >
+                          HOLD
+                        </button>
+                      )}
+
+                      {report.status !== "REJECTED" && (
+                        <button
+                          onClick={() => setRejectModal(report)}
+                          style={{
+                            flex: 1, padding: "7px 0", borderRadius: 6, cursor: "pointer",
+                            background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+                            color: "#ef4444", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700
+                          }}
+                        >
+                          REJECT
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Detailed Inspection Panel (PRD §31) */}
+            {selectedCitizenReport && (
+              <div style={{
+                background: "rgba(14,14,14,0.98)", border: "1px solid rgba(255,107,53,0.3)",
+                borderRadius: 14, padding: "20px 24px", display: "flex", flexDirection: "column", gap: 14,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.6)", height: "fit-content"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(38,38,38,0.7)", paddingBottom: 12 }}>
+                  <div>
+                    <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#FF6B35" }}>
+                      CITIZEN ALERT INTAKE DOSSIER
+                    </span>
+                    <h3 className="font-display" style={{ fontSize: 16, fontWeight: 800, color: "white", margin: 0 }}>
+                      {selectedCitizenReport.reportId}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setSelectedCitizenReport(null)}
+                    style={{ background: "none", border: "none", color: "#888", fontSize: 14, cursor: "pointer" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Key Metadata Table */}
+                <div style={{
+                  display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+                  fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#a3a3a3",
+                  background: "rgba(8,8,8,0.7)", padding: 14, borderRadius: 8
+                }}>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>REPORTER NAME:</span> <strong style={{ color: "white", display: "block" }}>{selectedCitizenReport.reporterName}</strong></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>EVENT TYPE:</span> <strong style={{ color: "#FF6B35", display: "block" }}>{selectedCitizenReport.eventType}</strong></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>PLACE NAME:</span> <span style={{ color: "white", display: "block" }}>{selectedCitizenReport.placeName}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>NEARBY LANDMARK:</span> <span style={{ color: "white", display: "block" }}>{selectedCitizenReport.nearbyLandmark}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>DISTRICT & STATE:</span> <span style={{ color: "white", display: "block" }}>{selectedCitizenReport.district}, {selectedCitizenReport.state}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>CITY PIN CODE:</span> <span style={{ color: "white", display: "block" }}>{selectedCitizenReport.pinCode}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>REPORTED THREAT:</span> <span style={{ color: selectedCitizenReport.reportedThreatLevel === "CRITICAL" ? "#ef4444" : "#f59e0b", fontWeight: 800, display: "block" }}>{selectedCitizenReport.reportedThreatLevel}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>CURRENT STATUS:</span> <span style={{ color: "#10b981", fontWeight: 800, display: "block" }}>{selectedCitizenReport.status}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>DATE & TIME:</span> <span style={{ color: "white", display: "block" }}>{selectedCitizenReport.incidentDate} · {selectedCitizenReport.incidentTime}</span></div>
+                  <div><span style={{ color: "#666", fontSize: 9 }}>SUBMITTED AT:</span> <span style={{ color: "white", display: "block" }}>{new Date(selectedCitizenReport.submittedAt).toLocaleTimeString()}</span></div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <span style={{ color: "#888", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", display: "block", marginBottom: 4 }}>
+                    CITIZEN OBSERVATION DETAILS:
+                  </span>
+                  <p style={{
+                    fontSize: 11, color: "#ededed", margin: 0, padding: 12,
+                    background: "rgba(8,8,8,0.7)", borderRadius: 8, border: "1px solid rgba(38,38,38,0.6)",
+                    lineHeight: 1.6, fontFamily: "'Inter', sans-serif"
+                  }}>
+                    {selectedCitizenReport.description}
+                  </p>
+                </div>
+
+                {/* Photo Preview if attached */}
+                {selectedCitizenReport.imageUrl && (
+                  <div>
+                    <span style={{ color: "#888", fontSize: 10, fontFamily: "'JetBrains Mono', monospace", display: "block", marginBottom: 6 }}>
+                      SUBMITTED PHOTOGRAPHIC EVIDENCE:
+                    </span>
+                    <img
+                      src={selectedCitizenReport.imageUrl}
+                      alt="Citizen evidence"
+                      style={{ width: "100%", maxHeight: 200, objectFit: "cover", borderRadius: 8, border: "1px solid rgba(255,107,53,0.3)" }}
+                    />
+                  </div>
+                )}
+
+                {/* Admin notes if reviewed */}
+                {selectedCitizenReport.adminNotes && (
+                  <div style={{ padding: 10, borderRadius: 8, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.2)", fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ color: "#10b981", fontWeight: 700 }}>ADMIN VERIFICATION NOTES:</span>
+                    <p style={{ color: "#d4d4d4", margin: "4px 0 0" }}>{selectedCitizenReport.adminNotes}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+
+        </div>
+      )}
+
+      {/* ════ TAB 2: TELEMETRY INGESTION ALERTS (PRD §49) ════ */}
+      {activeTab === "system" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div style={{
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            background: "rgba(14,14,14,0.9)", padding: "12px 18px", borderRadius: 12, border: "1px solid rgba(38,38,38,0.7)"
+          }}>
+            <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#888" }}>
+              FILTER TELEMETRY SEVERITY:
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              {["ALL", "CRITICAL", "HIGH_PRIORITY", "OBSERVATION"].map(sev => (
+                <button
+                  key={sev}
+                  onClick={() => setSystemFilterSeverity(sev)}
+                  style={{
+                    padding: "4px 10px", borderRadius: 6, cursor: "pointer",
+                    fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                    background: systemFilterSeverity === sev ? "#FF6B35" : "transparent",
+                    color: systemFilterSeverity === sev ? "#0f0f0f" : "#888",
+                    border: systemFilterSeverity === sev ? "none" : "1px solid rgba(38,38,38,0.8)"
+                  }}
+                >
+                  {sev}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {systemAlerts
+              .filter(a => systemFilterSeverity === "ALL" || a.severity === systemFilterSeverity)
+              .map(alert => (
+                <div
+                  key={alert.alertId}
+                  style={{
+                    background: "rgba(14,14,14,0.95)", border: "1px solid rgba(38,38,38,0.8)",
+                    borderRadius: 12, padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center",
+                    gap: 16
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+                      <span style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", fontWeight: 800, color: "#FF6B35" }}>
+                        {alert.alertId}
                       </span>
-                    )}
+                      <span style={{
+                        padding: "2px 6px", borderRadius: 4, fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
+                        background: alert.severity === "CRITICAL" ? "rgba(239,68,68,0.15)" : "rgba(255,107,53,0.15)",
+                        color: alert.severity === "CRITICAL" ? "#ef4444" : "#FF6B35"
+                      }}>
+                        {alert.severity}
+                      </span>
+                      <span style={{ fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', monospace" }}>
+                        Status: <strong style={{ color: "#10b981" }}>{alert.status.toUpperCase()}</strong>
+                      </span>
+                    </div>
+
+                    <h4 style={{ fontSize: 13, fontWeight: 700, color: "white", margin: "0 0 4px" }}>
+                      {alert.type} — {alert.location}
+                    </h4>
+                    <p style={{ fontSize: 11, color: "#a3a3a3", margin: 0 }}>
+                      {alert.description}
+                    </p>
+                  </div>
+
+                  <div style={{ textAlign: "right", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "#666" }}>
+                    <div>Reviewed by: <strong style={{ color: "#aaa" }}>{alert.reviewedBy}</strong></div>
+                    <div style={{ marginTop: 2 }}>{alert.dataSource}</div>
                   </div>
                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              ))}
+          </div>
+        </div>
+      )}
 
-      {/* Confirmation Modal */}
-      {confirmModal && (
+      {/* ── MODAL 1: ACCEPT ALERT CONFIRMATION (PRD §32) ── */}
+      {acceptModal && (
         <Modal
           isOpen={true}
-          onClose={() => setConfirmModal(null)}
-          title="Confirm Action"
+          onClose={() => setAcceptModal(null)}
+          title="ACCEPT & VERIFY CITIZEN ALERT"
         >
-          <div style={{ padding: "8px 0" }}>
-            <p style={{ fontSize: 13, color: "#d4d4d4", lineHeight: 1.6, margin: "0 0 20px" }}>
-              Are you sure you want to <strong style={{ color: "#FF6B35" }}>{confirmModal.label}</strong> for alert{" "}
-              <strong style={{ color: "white" }}>{confirmModal.alertId}</strong>?
-              <br /><br />
-              <span style={{ fontSize: 11, color: "#888" }}>
-                This action will be logged in the audit trail.
-              </span>
+          <div style={{ padding: "8px 0", fontFamily: "'JetBrains Mono', monospace" }}>
+            <p style={{ fontSize: 12, color: "#d4d4d4", lineHeight: 1.6, margin: "0 0 16px" }}>
+              You are approving citizen report <strong style={{ color: "#FF6B35" }}>{acceptModal.reportId}</strong> ({acceptModal.eventType} at {acceptModal.placeName}).
+              This will assign an official verified threat level and broadcast the alert to the <strong>Verified Alerts</strong> section and India Map.
             </p>
+
+            {/* Verified Threat Level Selection (PRD §32) */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: "block", fontSize: 10, color: "#888", marginBottom: 6, fontWeight: 700 }}>
+                SELECT VERIFIED THREAT LEVEL *
+              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map(lvl => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setVerifiedThreatLevel(lvl)}
+                    style={{
+                      padding: "8px 0", borderRadius: 6, cursor: "pointer",
+                      fontSize: 11, fontWeight: 800,
+                      background: verifiedThreatLevel === lvl ? (lvl === "CRITICAL" ? "#ef4444" : lvl === "HIGH" ? "#FF6B35" : "#10b981") : "rgba(8,8,8,0.7)",
+                      color: verifiedThreatLevel === lvl ? "#0f0f0f" : "white",
+                      border: `1px solid ${verifiedThreatLevel === lvl ? "transparent" : "rgba(38,38,38,0.8)"}`
+                    }}
+                  >
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Optional Admin Notes (PRD §32) */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 10, color: "#888", marginBottom: 6, fontWeight: 700 }}>
+                ADMIN OPERATIONAL NOTES (OPTIONAL)
+              </label>
+              <textarea
+                rows={3}
+                value={adminNotes}
+                onChange={e => setAdminNotes(e.target.value)}
+                placeholder="e.g. Cross-verified with InSAR/SAR ground pass and regional weather radar."
+                style={{
+                  width: "100%", padding: "10px", borderRadius: 6,
+                  background: "rgba(8,8,8,0.85)", border: "1px solid rgba(38,38,38,0.8)",
+                  color: "white", fontSize: 11, fontFamily: "'Inter', sans-serif", outline: "none"
+                }}
+              />
+            </div>
+
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button
-                onClick={() => setConfirmModal(null)}
+                type="button"
+                onClick={() => setAcceptModal(null)}
                 style={{
-                  padding: "10px 20px", borderRadius: 8, cursor: "pointer",
-                  fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                  padding: "9px 18px", borderRadius: 8, cursor: "pointer",
                   background: "rgba(38,38,38,0.7)", color: "#a3a3a3",
-                  border: "1px solid rgba(60,60,60,0.8)", transition: "all 0.2s"
+                  border: "1px solid rgba(60,60,60,0.8)", fontSize: 11
                 }}
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleStatusTransition(confirmModal.alertId, confirmModal.nextStatus)}
+                type="button"
+                onClick={handleConfirmAccept}
                 style={{
-                  padding: "10px 20px", borderRadius: 8, cursor: "pointer",
-                  fontSize: 12, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                  background: "#FF6B35", color: "#0f0f0f",
-                  border: "none", transition: "all 0.2s"
+                  padding: "9px 20px", borderRadius: 8, cursor: "pointer",
+                  background: "#10b981", color: "#0f0f0f", fontWeight: 800,
+                  border: "none", fontSize: 11, display: "flex", alignItems: "center", gap: 6
                 }}
               >
-                Confirm
+                <CheckCircle2 style={{ width: 14, height: 14 }} />
+                <span>ACCEPT & PUBLISH</span>
               </button>
             </div>
           </div>
         </Modal>
       )}
+
+      {/* ── MODAL 2: HOLD ALERT MODAL (PRD §34) ── */}
+      {holdModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => setHoldModal(null)}
+          title="PLACE CITIZEN ALERT ON HOLD"
+        >
+          <div style={{ padding: "8px 0", fontFamily: "'JetBrains Mono', monospace" }}>
+            <p style={{ fontSize: 12, color: "#d4d4d4", lineHeight: 1.6, margin: "0 0 16px" }}>
+              Place <strong style={{ color: "#FF6B35" }}>{holdModal.reportId}</strong> on hold for additional verification.
+              Held reports do NOT appear as public verified alerts until reviewed again.
+            </p>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 10, color: "#888", marginBottom: 6, fontWeight: 700 }}>
+                HOLD REASON / NOTES
+              </label>
+              <textarea
+                rows={3}
+                value={holdReason}
+                onChange={e => setHoldReason(e.target.value)}
+                placeholder="e.g. Awaiting ground verification from district node or subsequent satellite pass."
+                style={{
+                  width: "100%", padding: "10px", borderRadius: 6,
+                  background: "rgba(8,8,8,0.85)", border: "1px solid rgba(38,38,38,0.8)",
+                  color: "white", fontSize: 11, fontFamily: "'Inter', sans-serif", outline: "none"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setHoldModal(null)}
+                style={{
+                  padding: "9px 18px", borderRadius: 8, cursor: "pointer",
+                  background: "rgba(38,38,38,0.7)", color: "#a3a3a3",
+                  border: "1px solid rgba(60,60,60,0.8)", fontSize: 11
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmHold}
+                style={{
+                  padding: "9px 20px", borderRadius: 8, cursor: "pointer",
+                  background: "#f59e0b", color: "#0f0f0f", fontWeight: 800,
+                  border: "none", fontSize: 11
+                }}
+              >
+                CONFIRM HOLD
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── MODAL 3: REJECT ALERT MODAL (PRD §35) ── */}
+      {rejectModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => setRejectModal(null)}
+          title="REJECT CITIZEN ALERT"
+        >
+          <div style={{ padding: "8px 0", fontFamily: "'JetBrains Mono', monospace" }}>
+            <p style={{ fontSize: 12, color: "#d4d4d4", lineHeight: 1.6, margin: "0 0 16px" }}>
+              Reject <strong style={{ color: "#ef4444" }}>{rejectModal.reportId}</strong>.
+              Rejected reports will reflect in the user's My Alerts log with reason, but will not be published publicly.
+            </p>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: "block", fontSize: 10, color: "#888", marginBottom: 6, fontWeight: 700 }}>
+                REJECTION REASON
+              </label>
+              <textarea
+                rows={3}
+                value={rejectReason}
+                onChange={e => setRejectReason(e.target.value)}
+                placeholder="e.g. Duplicate report, false observation, or insufficient photographic evidence."
+                style={{
+                  width: "100%", padding: "10px", borderRadius: 6,
+                  background: "rgba(8,8,8,0.85)", border: "1px solid rgba(38,38,38,0.8)",
+                  color: "white", fontSize: 11, fontFamily: "'Inter', sans-serif", outline: "none"
+                }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setRejectModal(null)}
+                style={{
+                  padding: "9px 18px", borderRadius: 8, cursor: "pointer",
+                  background: "rgba(38,38,38,0.7)", color: "#a3a3a3",
+                  border: "1px solid rgba(60,60,60,0.8)", fontSize: 11
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                style={{
+                  padding: "9px 20px", borderRadius: 8, cursor: "pointer",
+                  background: "#ef4444", color: "#0f0f0f", fontWeight: 800,
+                  border: "none", fontSize: 11
+                }}
+              >
+                CONFIRM REJECT
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
     </div>
   );
 };

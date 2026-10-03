@@ -359,7 +359,84 @@ All district administration notices have been flagged. Local travel advisories r
     quarantineOnSignatureFailure: true,
     telemetryBroadcastRateSeconds: 5,
     instagramAutoPublishEnabled: false // PRD Rule: Never auto-publish unverified alerts
-  }
+  },
+  citizen_alert_reports: [
+    {
+      reportId: "BEM-ALERT-000001",
+      userId: "usr_citizen_01",
+      reporterName: "Basavaraj Kankamanal",
+      eventType: "Heavy Rainfall",
+      placeName: "Madikeri",
+      nearbyLandmark: "Madikeri Bus Stand",
+      district: "Kodagu",
+      state: "Karnataka",
+      pinCode: "571201",
+      reportedThreatLevel: "MEDIUM",
+      description: "Continuous heavy rainfall for past 6 hours. Water level rising fast near the drainage channel adjacent to the bus terminal.",
+      incidentDate: "2026-09-26",
+      incidentTime: "09:30 PM",
+      imageUrl: "https://images.unsplash.com/photo-1534274988757-a28bf1a57c17?auto=format&fit=crop&w=800&q=80",
+      status: "PENDING REVIEW",
+      verifiedThreatLevel: null,
+      adminReason: "",
+      adminNotes: "",
+      reviewedBy: null,
+      submittedAt: "2026-09-26T21:30:00Z",
+      reviewedAt: null,
+      publishedAt: null,
+      source: "CITIZEN REPORT"
+    },
+    {
+      reportId: "BEM-ALERT-000002",
+      userId: "usr_citizen_02",
+      reporterName: "Aarav Sharma",
+      eventType: "Flood",
+      placeName: "Tezpur Riverside",
+      nearbyLandmark: "Old Brahmaputra Bridge Checkpost",
+      district: "Sonitpur",
+      state: "Assam",
+      pinCode: "784001",
+      reportedThreatLevel: "HIGH",
+      description: "Brahmaputra overflowed banks into adjacent lower agrarian fields. Road partially submerged.",
+      incidentDate: "2026-09-26",
+      incidentTime: "06:15 PM",
+      imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80",
+      status: "VERIFIED",
+      verifiedThreatLevel: "HIGH",
+      adminReason: "Cross-verified with SAR satellite pass OBS-000142 showing +27% inundation.",
+      adminNotes: "Public warning broadcasted and marked on India Map.",
+      reviewedBy: "Dr. Marcus Vance",
+      submittedAt: "2026-09-26T18:15:00Z",
+      reviewedAt: "2026-09-26T19:00:00Z",
+      publishedAt: "2026-09-26T19:05:00Z",
+      source: "CITIZEN REPORT"
+    },
+    {
+      reportId: "BEM-ALERT-000003",
+      userId: "usr_citizen_03",
+      reporterName: "Pooja Patel",
+      eventType: "Landslide",
+      placeName: "Joshimath Sector 4",
+      nearbyLandmark: "Near Government High School",
+      district: "Chamoli",
+      state: "Uttarakhand",
+      pinCode: "246443",
+      reportedThreatLevel: "CRITICAL",
+      description: "Minor rockfall and crack expansion observed on roadside retaining wall.",
+      incidentDate: "2026-09-25",
+      incidentTime: "02:40 PM",
+      imageUrl: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
+      status: "ON HOLD",
+      verifiedThreatLevel: null,
+      adminReason: "Pending local field team ground check before public alert issuance.",
+      adminNotes: "Dispatched InSAR analysis task to verify ground displacement rate.",
+      reviewedBy: "Commander Elena Rostova",
+      submittedAt: "2026-09-25T14:40:00Z",
+      reviewedAt: "2026-09-25T15:20:00Z",
+      publishedAt: null,
+      source: "CITIZEN REPORT"
+    }
+  ]
 };
 
 class BemDataStore {
@@ -377,12 +454,22 @@ class BemDataStore {
 
   get(collection) {
     const raw = localStorage.getItem(STORAGE_PREFIX + collection);
+    if (!raw && initialSeed[collection]) {
+      localStorage.setItem(STORAGE_PREFIX + collection, JSON.stringify(initialSeed[collection]));
+      return initialSeed[collection];
+    }
     return raw ? JSON.parse(raw) : [];
   }
 
   save(collection, data) {
     localStorage.setItem(STORAGE_PREFIX + collection, JSON.stringify(data));
     window.dispatchEvent(new CustomEvent(`bem_${collection}_update`, { detail: data }));
+  }
+
+  subscribe(collection, callback) {
+    const handler = (e) => callback(e.detail);
+    window.addEventListener(`bem_${collection}_update`, handler);
+    return () => window.removeEventListener(`bem_${collection}_update`, handler);
   }
 
   add(collection, item) {

@@ -91,6 +91,19 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Citizen Alert Reports (PRD §21 & §60)
+    match /citizen_alert_reports/{reportId} {
+      // Public can read only accepted/published alerts; submitters can read their own
+      allow read: if resource.data.status in ['APPROVED', 'VERIFIED', 'PUBLISHED'] || 
+                     (isAuthenticated() && (resource.data.userId == request.auth.uid || isAnalyst() || isSuperAdmin()));
+      // Authenticated citizen can create a report with initial status PENDING REVIEW
+      allow create: if isAuthenticated() && 
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.status == 'PENDING REVIEW';
+      // Only analysts or super admins can update status, verified threat level, or admin notes
+      allow update, delete: if isAnalyst() || isSuperAdmin();
+    }
+
     match /system_settings/{settingId} {
       allow read: if isAuthenticated();
       allow write: if isSuperAdmin();

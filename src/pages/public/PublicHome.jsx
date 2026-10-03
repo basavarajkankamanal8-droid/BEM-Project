@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { dataStore } from "../../services/dataStore";
 import { DataBadge } from "../../components/layout/DataBadge";
 import { ImageCompareSlider } from "../../components/imagery/ImageCompareSlider";
+import { EarthMap } from "../../components/map/EarthMap";
 import { 
   Globe2, AlertTriangle, Waves, Mountain, 
-  Trees, Wind, Lock, ShieldCheck, Activity
+  Trees, Wind, Lock, ShieldCheck, Activity,
+  Satellite, Radio, ArrowRight
 } from "lucide-react";
 
 export const PublicHome = () => {
@@ -163,7 +165,7 @@ export const PublicHome = () => {
             fontSize: 16, color: "#e5e7eb", maxWidth: 640, margin: "0 auto 32px",
             lineHeight: 1.7
           }}>
-            Bharat Earth Monitor transforms satellite, GNSS, and environmental observations into meaningful Earth-monitoring intelligence.
+            Bharat Earth Monitor brings Earth observation, GNSS visualization, environmental monitoring, geographical information and public information together in one secure platform.
           </p>
 
           <div style={{ display: "flex", justifyContent: "center", gap: 14, flexWrap: "wrap", marginBottom: 36 }}>
@@ -187,7 +189,7 @@ export const PublicHome = () => {
               letterSpacing: "0.04em"
             }}>
               <Lock style={{ width: 14, height: 14, color: "#FF6B35" }} />
-              Secure Portal
+              Access Portal
             </Link>
           </div>
 
@@ -243,6 +245,57 @@ export const PublicHome = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* ══ INTERACTIVE INDIA MAP & MONITORING GRID (PRD §6 & §21) ══ */}
+          <div style={{
+            marginTop: 40,
+            background: "rgba(18,18,18,0.92)",
+            border: "1px solid rgba(255,107,53,0.25)",
+            borderRadius: 16,
+            padding: "24px",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.6), 0 0 40px rgba(255,107,53,0.08)",
+            textAlign: "left"
+          }}>
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <Globe2 style={{ width: 18, height: 18, color: "#FF6B35" }} />
+                  <span className="font-display" style={{ fontSize: 16, fontWeight: 800, color: "white", letterSpacing: "0.08em" }}>
+                    INDIA OBSERVATION & MONITORING GRID
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, fontFamily: "'JetBrains Mono', monospace", color: "#888888", margin: 0 }}>
+                  Real-time visualization of 16 ground stations, orbital satellite tracking, and public advisory markers.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{
+                  padding: "4px 10px", borderRadius: 6,
+                  background: "rgba(16,185,129,0.1)", border: "1px solid rgba(16,185,129,0.3)",
+                  fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: "#10b981", fontWeight: 700
+                }}>
+                  ● 16 GROUND NODES ACTIVE
+                </span>
+                <DataBadge isSimulation={true} size="xs" />
+              </div>
+            </div>
+
+            <EarthMap
+              height="380px"
+              showStations={true}
+              showBoundary={true}
+              satellites={dataStore.get("satellites")}
+              alertMarkers={alerts.map(a => ({
+                id: a.alertId,
+                type: a.type,
+                location: a.location,
+                severity: a.severity,
+                lat: a.type.includes("FLOOD") ? 26.2006 : 30.0668,
+                lng: a.type.includes("FLOOD") ? 92.9376 : 79.0193
+              }))}
+            />
           </div>
         </div>
       </section>

@@ -68,15 +68,23 @@ const KpiCard = ({ icon, _iconColor, title, mainValue, subItems, accentColor, ba
   </div>
 );
 
+import { dataStore } from "../../services/dataStore";
+
 export const Dashboard = () => {
   const { satellites, activeGnss, alerts, sensorReadings } = useTelemetry();
+  const [citizenReports, setCitizenReports] = useState(() => dataStore.get("citizen_alert_reports"));
   const [_tick, setTick] = useState(0);
 
   useEffect(() => {
     const t = setInterval(() => setTick(n => n + 1), 1000);
-    return () => clearInterval(t);
+    const unsub = dataStore.subscribe("citizen_alert_reports", setCitizenReports);
+    return () => {
+      clearInterval(t);
+      unsub();
+    };
   }, []);
 
+  const pendingCitizenCount = citizenReports.filter(r => r.status === "PENDING REVIEW" || r.status === "PENDING").length;
   const activeAlertsCount = alerts.filter(a => a.status !== "resolved").length;
   const criticalAlertsCount = alerts.filter(a => a.severity === "CRITICAL" && a.status !== "resolved").length;
 
@@ -198,6 +206,19 @@ export const Dashboard = () => {
             { label: "Total Active:", value: `${activeAlertsCount} alerts`, color: "#f59e0b" },
             { label: "Environmental:", value: "2 Active", color: "#f59e0b" },
             { label: "Data Integrity:", value: "1 Quarantined", color: "#FF6B35" },
+          ]}
+        />
+        <KpiCard
+          icon={<AlertTriangle />}
+          iconColor="#FF6B35"
+          title="CITIZEN REPORTS"
+          mainValue={`${pendingCitizenCount} NEW`}
+          accentColor="#FF6B35"
+          badge={pendingCitizenCount > 0 ? "ping" : "#10b981"}
+          subItems={[
+            { label: "Pending Review:", value: `${pendingCitizenCount} Reports`, color: pendingCitizenCount > 0 ? "#FF6B35" : "#10b981" },
+            { label: "Total Received:", value: `${citizenReports.length} Reports`, color: "#d4d4d4" },
+            { label: "Intake Pipeline:", value: "Real-time Sync", color: "#10b981" },
           ]}
         />
       </div>

@@ -7,6 +7,8 @@ import { TelemetryProvider } from "./context/TelemetryContext";
 import { Navbar } from "./components/layout/Navbar";
 import { Sidebar } from "./components/layout/Sidebar";
 import { IntroAnimation } from "./components/layout/IntroAnimation";
+import { ChatAssistant } from "./components/ui/ChatAssistant";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 
 // Admin & Operations Pages
 import { Dashboard } from "./pages/admin/Dashboard";
@@ -29,6 +31,9 @@ import { Register } from "./pages/auth/Register";
 import { PublicHome } from "./pages/public/PublicHome";
 import { PublicDashboard } from "./pages/public/PublicDashboard";
 import { UserProfile } from "./pages/public/UserProfile";
+import { ReportAlert } from "./pages/public/ReportAlert";
+import { MyAlerts } from "./pages/public/MyAlerts";
+import { VerifiedAlerts } from "./pages/public/VerifiedAlerts";
 
 // Loading spinner for auth state
 const AuthLoadingScreen = () => (
@@ -55,7 +60,7 @@ const AuthLoadingScreen = () => (
   </div>
 );
 
-// Protected Layout Route wrapper with mobile sidebar
+// Protected Layout Route wrapper with mobile sidebar & error boundary (PRD §69)
 const ProtectedLayout = ({ children, requireAdmin = false }) => {
   const { currentUser, isAdmin, authLoading } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -69,7 +74,7 @@ const ProtectedLayout = ({ children, requireAdmin = false }) => {
   }
 
   if (requireAdmin && !isAdmin) {
-    return <Navigate to="/public-dashboard" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   return (
@@ -99,15 +104,36 @@ const ProtectedLayout = ({ children, requireAdmin = false }) => {
           <Sidebar onClose={() => setSidebarOpen(false)} />
         </div>
         <main className="flex-1 overflow-y-auto bg-[#0f0f0f] pb-12">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
     </div>
   );
 };
 
+// Smart Root Route: Unauthenticated -> /login; Admin -> Dashboard; Public -> PublicDashboard
+// PRD §6: Login is the first page after IntroAnimation for all unauthenticated users.
+const RootRoute = () => {
+  const { currentUser, isAdmin, authLoading } = useAuth();
+  if (authLoading) return <AuthLoadingScreen />;
+  if (!currentUser) return <Navigate to="/login" replace />;
+  if (isAdmin) {
+    return (
+      <ProtectedLayout requireAdmin={true}>
+        <Dashboard />
+      </ProtectedLayout>
+    );
+  }
+  return (
+    <ProtectedLayout>
+      <PublicDashboard />
+    </ProtectedLayout>
+  );
+};
+
 function MainAppContent() {
-  const { authLoading } = useAuth();
   const [showIntro, setShowIntro] = useState(() => {
     const visited = sessionStorage.getItem("bem_intro_seen");
     return !visited;
@@ -118,19 +144,42 @@ function MainAppContent() {
     setShowIntro(false);
   };
 
+  // While the intro animation is playing, render nothing beneath it.
+  // This prevents premature route rendering before auth state has loaded,
+  // which previously caused the PublicDashboard crash (PRD §4, §69).
+  if (showIntro) {
+    return (
+      <ErrorBoundary>
+        <IntroAnimation onComplete={handleIntroComplete} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
-    <>
-      {showIntro && <IntroAnimation onComplete={handleIntroComplete} />}
+    <ErrorBoundary>
 
       <Routes>
-        {/* Public Website */}
+        {/* Smart Root & Public Landing Pages (PRD §6, §7 & §67) */}
+        <Route path="/" element={<RootRoute />} />
+        <Route path="/home" element={<PublicHome />} />
         <Route path="/public" element={<PublicHome />} />
+        <Route path="/about" element={<PublicHome />} />
+        <Route path="/monitoring" element={<PublicHome />} />
+        <Route path="/network" element={<PublicHome />} />
 
         {/* Auth Pages */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Public Logged-in User Dashboard & Profile */}
+        {/* ─── PEOPLE OF INDIA ROUTES (PRD §10 & §67) ─── */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedLayout>
+              <PublicDashboard />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/public-dashboard"
           element={
@@ -139,7 +188,54 @@ function MainAppContent() {
             </ProtectedLayout>
           }
         />
-
+        <Route
+          path="/dashboard/monitoring"
+          element={
+            <ProtectedLayout>
+              <EarthMonitoring />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/dashboard/report-alert"
+          element={
+            <ProtectedLayout>
+              <ReportAlert />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/dashboard/my-alerts"
+          element={
+            <ProtectedLayout>
+              <MyAlerts />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/dashboard/verified-alerts"
+          element={
+            <ProtectedLayout>
+              <VerifiedAlerts />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/dashboard/images"
+          element={
+            <ProtectedLayout>
+              <ImageManagement />
+            </ProtectedLayout>
+          }
+        />
+        <Route
+          path="/dashboard/reports"
+          element={
+            <ProtectedLayout>
+              <Reports />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/profile"
           element={
@@ -148,18 +244,32 @@ function MainAppContent() {
             </ProtectedLayout>
           }
         />
-
-        {/* Admin Dashboard — Admin Only */}
         <Route
-          path="/"
+          path="/dashboard/profile"
+          element={
+            <ProtectedLayout>
+              <UserProfile />
+            </ProtectedLayout>
+          }
+        />
+
+        {/* ─── ADMIN ROUTES & PRD §67 ALIASES ─── */}
+        <Route
+          path="/admin"
           element={
             <ProtectedLayout requireAdmin={true}>
               <Dashboard />
             </ProtectedLayout>
           }
         />
-
-        {/* Admin-only operational routes */}
+        <Route
+          path="/admin/gnss"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <GnssReceiver />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/gnss"
           element={
@@ -170,6 +280,14 @@ function MainAppContent() {
         />
 
         <Route
+          path="/admin/network"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <SatelliteData />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/satellites"
           element={
             <ProtectedLayout requireAdmin={true}>
@@ -178,6 +296,14 @@ function MainAppContent() {
           }
         />
 
+        <Route
+          path="/admin/monitoring"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <EarthMonitoring />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/earth-monitoring"
           element={
@@ -188,6 +314,14 @@ function MainAppContent() {
         />
 
         <Route
+          path="/admin/images"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <ImageManagement />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/images"
           element={
             <ProtectedLayout requireAdmin={true}>
@@ -196,6 +330,14 @@ function MainAppContent() {
           }
         />
 
+        <Route
+          path="/admin/change-detection"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <ChangeDetection />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/change-detection"
           element={
@@ -206,6 +348,14 @@ function MainAppContent() {
         />
 
         <Route
+          path="/admin/alerts"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <AlertSystem />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/alerts"
           element={
             <ProtectedLayout requireAdmin={true}>
@@ -214,6 +364,14 @@ function MainAppContent() {
           }
         />
 
+        <Route
+          path="/admin/reports"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <Reports />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/reports"
           element={
@@ -224,6 +382,14 @@ function MainAppContent() {
         />
 
         <Route
+          path="/admin/security"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <SecurityCenter />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/security"
           element={
             <ProtectedLayout requireAdmin={true}>
@@ -232,6 +398,14 @@ function MainAppContent() {
           }
         />
 
+        <Route
+          path="/admin/public-information"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <PublicPosts />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/public-posts"
           element={
@@ -242,6 +416,14 @@ function MainAppContent() {
         />
 
         <Route
+          path="/admin/users"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <Users />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/users"
           element={
             <ProtectedLayout requireAdmin={true}>
@@ -250,6 +432,14 @@ function MainAppContent() {
           }
         />
 
+        <Route
+          path="/admin/audit-logs"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <AuditLogs />
+            </ProtectedLayout>
+          }
+        />
         <Route
           path="/audit-logs"
           element={
@@ -260,6 +450,14 @@ function MainAppContent() {
         />
 
         <Route
+          path="/admin/settings"
+          element={
+            <ProtectedLayout requireAdmin={true}>
+              <Settings />
+            </ProtectedLayout>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <ProtectedLayout requireAdmin={true}>
@@ -268,19 +466,25 @@ function MainAppContent() {
           }
         />
 
-        {/* Fallback — unauthenticated goes to public landing */}
-        <Route path="*" element={<Navigate to="/public" replace />} />
+        {/* Fallback — redirects to smart root */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </>
+
+      {/* Global BEM AI Chat Assistant (PRD §49-§55) */}
+      <ChatAssistant />
+    </ErrorBoundary>
   );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <TelemetryProvider>
-        <MainAppContent />
-      </TelemetryProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <TelemetryProvider>
+          <MainAppContent />
+        </TelemetryProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
+
